@@ -36,9 +36,16 @@ This is the code for paper [Model-Contrastive Federated Learning](https://arxiv.
 
 ## Usage
 
+mu sample from {0.001,0.01,0.1,1,5}
+
 Here is an example to run MOON on CIFAR-10 with a simple CNN:
 ```
-python main.py --dataset=cifar10 --model=simple-cnn --alg=moon --lr=0.01 --mu=5 --epochs=10  --comm_round=100  --n_parties=10  --partition=noniid --beta=0.5  --logdir='logs/'    --datadir='data/' 
+python main.py --dataset=cifar10 --model=simple-cnn --alg=moon --lr=0.01 --mu=5 --epochs=10  --comm_round=100  --n_parties=10  --partition=noniid --beta=0.5  --logdir='logs/'    --datadir='data/' --modeldir='models/'
+```
+
+FedEdg:
+```
+python main.py --dataset=cifar10 --model=simple-cnn --alg=fededg --lr=0.01 --mu=0.1 --epochs=10  --comm_round=100  --n_parties=10  --partition=noniid --beta=0.5  --logdir='logs/'    --datadir='data/' --modeldir='models/'
 ```
 
 ## Tiny-ImageNet
