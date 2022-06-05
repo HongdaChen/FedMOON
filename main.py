@@ -417,6 +417,7 @@ def train_net_fedcon(net_id, net, global_net, previous_nets, train_dataloader, t
 
 def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, global_model = None, prev_model_pool = None, server_c = None, clients_c = None, round=None, device="cpu"):
     avg_acc = 0.0
+    epoch_loss = 0.0
     epoch_loss_nets = []
     acc_list = []
     if global_model:
