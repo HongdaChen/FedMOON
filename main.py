@@ -419,6 +419,7 @@ def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, gl
     avg_acc = 0.0
     epoch_loss = 0.0
     epoch_loss_nets = []
+    epoch_loss_weight = []
     acc_list = []
     if global_model:
         global_model.cuda()
