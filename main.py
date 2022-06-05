@@ -722,7 +722,7 @@ if __name__ == '__main__':
                 net.load_state_dict(global_w)
 
             ########## global_model = global_model,
-            _,nets_loss_weight = local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl,test_dl=test_dl, global_model = global_model, device=device)
+            local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl,test_dl=test_dl, global_model = global_model, device=device)
             global_model.to('cpu')
 
             # update global model
@@ -733,10 +733,10 @@ if __name__ == '__main__':
                 net_para = net.state_dict()
                 if net_id == 0:
                     for key in net_para:
-                        global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * nets_loss_weight[net_id])
+                        global_w[key] = net_para[key] * fed_avg_freqs[net_id]
                 else:
                     for key in net_para:
-                        global_w[key] += net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * nets_loss_weight[net_id])
+                        global_w[key] += net_para[key] * fed_avg_freqs[net_id]
             #
             # if args.server_momentum:
             #     delta_w = copy.deepcopy(global_w)
@@ -761,9 +761,65 @@ if __name__ == '__main__':
             writer.add_scalar("Test_Acc", test_acc, round)
             logger.info('>> Global Model Train loss: %f' % train_loss)
             writer.add_scalar("Train_Loss", train_loss, round)
+            mkdirs(args.modeldir + 'fedprox/')
+            global_model.to('cpu')
+            torch.save(global_model.state_dict(), args.modeldir +'fedprox/'+args.log_file_name+ '.pth')
+    elif args.alg == 'fededg':
+        for round in range(n_comm_rounds):
+            logger.info("in comm round:" + str(round))
+            party_list_this_round = party_list_rounds[round]
+            global_w = global_model.state_dict()
+            ##############################################################
+            ##          if args.server_momentum:
+            ##              old_w = copy.deepcopy(global_model.state_dict())
+            ##############################################################
+            nets_this_round = {k: nets[k] for k in party_list_this_round}
+            for net in nets_this_round.values():
+                net.load_state_dict(global_w)
+
+            ########## global_model = global_model,
+            _, nets_loss_weight = local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl,
+                                                  test_dl=test_dl, global_model=global_model, device=device)
+            global_model.to('cpu')
+
+            # update global model
+            total_data_points = sum([len(net_dataidx_map[r]) for r in party_list_this_round])
+            fed_avg_freqs = [len(net_dataidx_map[r]) / total_data_points for r in party_list_this_round]
+
+            for net_id, net in enumerate(nets_this_round.values()):
+                net_para = net.state_dict()
+                if net_id == 0:
+                    for key in net_para:
+                        global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * nets_loss_weight[net_id])
+                else:
+                    for key in net_para:
+                        global_w[key] += net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * nets_loss_weight[net_id])
+            #
+            # if args.server_momentum:
+            #     delta_w = copy.deepcopy(global_w)
+            #     for key in delta_w:
+            #         delta_w[key] = old_w[key] - global_w[key]
+            #         moment_v[key] = args.server_momentum * moment_v[key] + (1-args.server_momentum) * delta_w[key]
+            #         global_w[key] = old_w[key] - moment_v[key]
+
+            global_model.load_state_dict(global_w)
+
+            logger.info('global n_training: %d' % len(train_dl_global))
+            logger.info('global n_test: %d' % len(test_dl))
+
+            global_model.cuda()
+            train_acc, train_loss = compute_accuracy(global_model, train_dl_global, device=device)
+            test_acc, conf_matrix, _ = compute_accuracy(global_model, test_dl, get_confusion_matrix=True, device=device)
+
+            logger.info('>> Global Model Train accuracy: %f' % train_acc)
+            writer.add_scalar("Train_Acc", train_acc, round)
+            logger.info('>> Global Model Test accuracy: %f' % test_acc)
+            writer.add_scalar("Test_Acc", test_acc, round)
+            logger.info('>> Global Model Train loss: %f' % train_loss)
+            writer.add_scalar("Train_Loss", train_loss, round)
             mkdirs(args.modeldir + 'fededg/')
             global_model.to('cpu')
-            torch.save(global_model.state_dict(), args.modeldir +'fededg/'+args.log_file_name+ '.pth')
+            torch.save(global_model.state_dict(), args.modeldir + 'fededg/' + args.log_file_name + '.pth')
 
     elif args.alg == 'local_training':
         logger.info("Initializing nets")
