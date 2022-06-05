@@ -457,8 +457,8 @@ def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, gl
         avg_acc += testacc
         acc_list.append(testacc)
         epoch_loss_nets.append(epoch_loss)
-
-    epoch_loss_weight = [i/sum(epoch_loss_nets) for i in epoch_loss_nets]
+    if args.alg == 'fededg':
+        epoch_loss_weight = [i/sum(epoch_loss_nets) for i in epoch_loss_nets]
     avg_acc /= args.n_parties
     if args.alg == 'local_training':
         logger.info("avg test acc %f" % avg_acc)
