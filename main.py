@@ -10,8 +10,7 @@ import copy
 import datetime
 import random
 from tensorboardX import SummaryWriter
-
-
+import torch.nn.functional as F
 
 from model import *
 from utils import *
@@ -32,16 +31,16 @@ def get_args():
     parser.add_argument('--comm_round', type=int, default=50, help='number of maximum communication roun')
     parser.add_argument('--init_seed', type=int, default=0, help="Random seed")
     parser.add_argument('--dropout_p', type=float, required=False, default=0.0, help="Dropout probability. Default=0.0")
-    parser.add_argument('--datadir', type=str, required=False, default="./data/", help="Data directory")
+    parser.add_argument('--datadir', type=str, required=False, default="data/", help="Data directory")
     parser.add_argument('--reg', type=float, default=1e-5, help="L2 regularization strength")
-    parser.add_argument('--logdir', type=str, required=False, default="./logs/", help='Log directory path')
-    parser.add_argument('--modeldir', type=str, required=False, default="./models/", help='Model directory path')
+    parser.add_argument('--logdir', type=str, required=False, default="logs/", help='Log directory path')
+    parser.add_argument('--modeldir', type=str, required=False, default="models/", help='Model directory path')
     parser.add_argument('--beta', type=float, default=0.5,
                         help='The parameter for the dirichlet distribution for data partitioning')
     parser.add_argument('--device', type=str, default='cuda:0', help='The device to run the program')
     parser.add_argument('--log_file_name', type=str, default=None, help='The log file name')
     parser.add_argument('--optimizer', type=str, default='sgd', help='the optimizer')
-    parser.add_argument('--mu', type=float, default=1, help='the mu parameter for fedprox or moon')
+    parser.add_argument('--mu', type=float, default=1, help='the mu parameter for fedprox or moon or fededg')
     parser.add_argument('--out_dim', type=int, default=256, help='the output dimension for the projection layer')
     parser.add_argument('--temperature', type=float, default=0.5, help='the temperature parameter for contrastive loss')
     parser.add_argument('--local_max_epoch', type=int, default=100, help='the number of epoch for local optimal training')
@@ -245,6 +244,80 @@ def train_net_fedprox(net_id, net, global_net, train_dataloader, test_dataloader
     return train_acc, test_acc
 
 
+def train_net_fededg(net_id, net, global_net, train_dataloader, test_dataloader, epochs, lr, args_optimizer, mu, args,
+                      device="cpu"):
+    # global_net.to(device)
+    net = nn.DataParallel(net)
+    net.cuda()
+    # else:
+    #     net.to(device)
+    logger.info('Training network %s' % str(net_id))
+    logger.info('n_training: %d' % len(train_dataloader))
+    logger.info('n_test: %d' % len(test_dataloader))
+
+    train_acc, _ = compute_accuracy(net, train_dataloader, device=device)
+    test_acc, conf_matrix, _ = compute_accuracy(net, test_dataloader, get_confusion_matrix=True, device=device)
+
+    logger.info('>> Pre-Training Training accuracy: {}'.format(train_acc))
+    logger.info('>> Pre-Training Test accuracy: {}'.format(test_acc))
+
+    if args_optimizer == 'adam':
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr, weight_decay=args.reg)
+    elif args_optimizer == 'amsgrad':
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr, weight_decay=args.reg,
+                               amsgrad=True)
+    elif args_optimizer == 'sgd':
+        optimizer = optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=lr, momentum=0.9,
+                              weight_decay=args.reg)
+
+    criterion = nn.CrossEntropyLoss().cuda()
+
+    cnt = 0
+    global_weight_collector = list(global_net.cuda().parameters())
+
+
+    for epoch in range(epochs):
+        epoch_loss_collector = []
+        for batch_idx, (x, target) in enumerate(train_dataloader):
+            x, target = x.cuda(), target.cuda()
+
+            optimizer.zero_grad()
+            x.requires_grad = False
+            target.requires_grad = False
+            target = target.long()
+
+            _,_,out = net(x)
+            loss = criterion(out, target)
+
+            # for fedprox
+            fed_edg_reg = 0.0
+            # fed_prox_reg += np.linalg.norm([i - j for i, j in zip(global_weight_collector, get_trainable_parameters(net).tolist())], ord=2)
+            for param_index, param in enumerate(net.parameters()):
+                kl = F.kl_div(param.softmax(dim=-1).log(), global_weight_collector[param_index].softmax(dim=-1), reduction='sum')
+                fed_edg_reg += ((mu / 2) * kl)
+            loss += fed_edg_reg
+
+            loss.backward()
+            optimizer.step()
+
+            cnt += 1
+            epoch_loss_collector.append(loss.item())
+
+        epoch_loss = sum(epoch_loss_collector) / len(epoch_loss_collector)
+        logger.info('Epoch: %d Loss: %f' % (epoch, epoch_loss))
+
+
+    train_acc, _ = compute_accuracy(net, train_dataloader, device=device)
+    test_acc, conf_matrix, _ = compute_accuracy(net, test_dataloader, get_confusion_matrix=True, device=device)
+
+    logger.info('>> Training accuracy: %f' % train_acc)
+    logger.info('>> Test accuracy: %f' % test_acc)
+    net.to('cpu')
+    logger.info(' ** Training complete **')
+    return train_acc, test_acc, epoch_loss
+
+
+
 def train_net_fedcon(net_id, net, global_net, previous_nets, train_dataloader, test_dataloader, epochs, lr, args_optimizer, mu, temperature, args,
                       round, device="cpu"):
     net = nn.DataParallel(net)
@@ -344,6 +417,7 @@ def train_net_fedcon(net_id, net, global_net, previous_nets, train_dataloader, t
 
 def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, global_model = None, prev_model_pool = None, server_c = None, clients_c = None, round=None, device="cpu"):
     avg_acc = 0.0
+    epoch_loss_nets = []
     acc_list = []
     if global_model:
         global_model.cuda()
@@ -365,6 +439,9 @@ def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, gl
         elif args.alg == 'fedprox':
             trainacc, testacc = train_net_fedprox(net_id, net, global_model, train_dl_local, test_dl, n_epoch, args.lr,
                                                   args.optimizer, args.mu, args, device=device)
+        elif args.alg == 'fededg':
+            trainacc, testacc, epoch_loss = train_net_fededg(net_id, net, global_model, train_dl_local, test_dl, n_epoch, args.lr,
+                                                  args.optimizer, args.mu, args, device=device)
         elif args.alg == 'moon':
             prev_models=[]
             for i in range(len(prev_model_pool)):
@@ -378,6 +455,9 @@ def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, gl
         logger.info("net %d final test acc %f" % (net_id, testacc))
         avg_acc += testacc
         acc_list.append(testacc)
+        epoch_loss_nets.append(epoch_loss)
+
+    epoch_loss_weight = [i/sum(epoch_loss_nets) for i in epoch_loss_nets]
     avg_acc /= args.n_parties
     if args.alg == 'local_training':
         logger.info("avg test acc %f" % avg_acc)
@@ -388,7 +468,7 @@ def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, gl
         for param_index, param in enumerate(server_c.parameters()):
             server_c_collector[param_index] = new_server_c_collector[param_index]
         server_c.to('cpu')
-    return nets
+    return nets, epoch_loss_weight
 
 
 if __name__ == '__main__':
@@ -465,6 +545,7 @@ if __name__ == '__main__':
         moment_v = copy.deepcopy(global_model.state_dict())
         for key in moment_v:
             moment_v[key] = 0
+
     if args.alg == 'moon':
         #######################################################################
         old_nets_pool = []
@@ -626,7 +707,6 @@ if __name__ == '__main__':
             torch.save(global_model.state_dict(), args.modeldir+'fedavg/'+'globalmodel'+args.log_file_name+'.pth')
             torch.save(nets[0].state_dict(), args.modeldir+'fedavg/'+'localmodel0'+args.log_file_name+'.pth')
     elif args.alg == 'fedprox':
-
         for round in range(n_comm_rounds):
             logger.info("in comm round:" + str(round))
             party_list_this_round = party_list_rounds[round]
@@ -640,7 +720,7 @@ if __name__ == '__main__':
                 net.load_state_dict(global_w)
 
             ########## global_model = global_model,
-            local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl,test_dl=test_dl, global_model = global_model, device=device)
+            _,nets_loss_weight = local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl,test_dl=test_dl, global_model = global_model, device=device)
             global_model.to('cpu')
 
             # update global model
@@ -651,10 +731,10 @@ if __name__ == '__main__':
                 net_para = net.state_dict()
                 if net_id == 0:
                     for key in net_para:
-                        global_w[key] = net_para[key] * fed_avg_freqs[net_id]
+                        global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * nets_loss_weight[net_id])
                 else:
                     for key in net_para:
-                        global_w[key] += net_para[key] * fed_avg_freqs[net_id]
+                        global_w[key] += net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * nets_loss_weight[net_id])
             #
             # if args.server_momentum:
             #     delta_w = copy.deepcopy(global_w)
@@ -679,9 +759,9 @@ if __name__ == '__main__':
             writer.add_scalar("Test_Acc", test_acc, round)
             logger.info('>> Global Model Train loss: %f' % train_loss)
             writer.add_scalar("Train_Loss", train_loss, round)
-            mkdirs(args.modeldir + 'fedprox/')
+            mkdirs(args.modeldir + 'fededg/')
             global_model.to('cpu')
-            torch.save(global_model.state_dict(), args.modeldir +'fedprox/'+args.log_file_name+ '.pth')
+            torch.save(global_model.state_dict(), args.modeldir +'fededg/'+args.log_file_name+ '.pth')
 
     elif args.alg == 'local_training':
         logger.info("Initializing nets")
