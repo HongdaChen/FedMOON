@@ -27,7 +27,7 @@ AXE_LABELS = {
 LEGEND = {
     "fedavg": "FedAvg",
     "FedEM": "FedEM",
-    "FedEdg": "FedEdg",
+    "fededg": "FedEdg",
     "moon": "MOON",
     "fedprox": "FedProx"
 }
@@ -37,7 +37,7 @@ MARKERS = {
     "clustered": "s",
     "fedavg": "*",
     "FedEM": "h",
-    "FedEdg": "d",
+    "fededg": "d",
     "moon": "4",
     "personalized": "X",
     "DEM": "|",
@@ -49,7 +49,7 @@ COLORS = {
     "clustered": "orange",
     "fedavg": "green",
     "FedEM": "c",
-    "FedEdg": "purple",
+    "fededg": "purple",
     "moon": "red",
     "personalized": "brown",
     "DEM": "pink",
@@ -100,7 +100,7 @@ def make_plot(path_,tag_,save_path=None):
     plt.savefig(fig_path,bbox_inches='tight')
 
 if __name__ == "__main__":
-    make_plot("logs/cifar10", "Test_Acc")
+    make_plot("mu-0.001-logs/cifar10", "Test_Acc")
     # make_plot("../logs/shakespeare", "Test/Loss")
     # make_plot("../logs/shakespeare", "Train/Metric")
     # make_plot("../logs/shakespeare", "Train/Loss")

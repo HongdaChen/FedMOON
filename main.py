@@ -294,7 +294,7 @@ def train_net_fededg(net_id, net, global_net, train_dataloader, test_dataloader,
             # fed_prox_reg += np.linalg.norm([i - j for i, j in zip(global_weight_collector, get_trainable_parameters(net).tolist())], ord=2)
             for param_index, param in enumerate(net.parameters()):
                 kl = F.kl_div(param.softmax(dim=-1).log(), global_weight_collector[param_index].softmax(dim=-1), reduction='sum')
-                fed_edg_reg += ((mu / 2) * kl)
+                fed_edg_reg += mu * kl
             loss += fed_edg_reg
 
             loss.backward()
@@ -458,8 +458,7 @@ def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, gl
         avg_acc += testacc
         acc_list.append(testacc)
         epoch_loss_nets.append(epoch_loss)
-    if args.alg == 'fededg':
-        epoch_loss_weight = [i/sum(epoch_loss_nets) for i in epoch_loss_nets]
+
     avg_acc /= args.n_parties
     if args.alg == 'local_training':
         logger.info("avg test acc %f" % avg_acc)
@@ -470,7 +469,7 @@ def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, gl
         for param_index, param in enumerate(server_c.parameters()):
             server_c_collector[param_index] = new_server_c_collector[param_index]
         server_c.to('cpu')
-    return nets, epoch_loss_weight
+    return nets, epoch_loss_nets
 
 
 if __name__ == '__main__':
@@ -767,6 +766,7 @@ if __name__ == '__main__':
             global_model.to('cpu')
             torch.save(global_model.state_dict(), args.modeldir +'fedprox/'+args.log_file_name+ '.pth')
     elif args.alg == 'fededg':
+        epoch_loss_pre = [1.0 for i in range(args.n_parties)]
         for round in range(n_comm_rounds):
             logger.info("in comm round:" + str(round))
             party_list_this_round = party_list_rounds[round]
@@ -780,8 +780,10 @@ if __name__ == '__main__':
                 net.load_state_dict(global_w)
 
             ########## global_model = global_model,
-            _, nets_loss_weight = local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl,
+            _, epoch_loss_nets = local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl,
                                                   test_dl=test_dl, global_model=global_model, device=device)
+            nets_loss_change_rate = [j/i for j,i in zip(epoch_loss_pre,epoch_loss_nets)]
+            nets_loss_weight = [i/sum(nets_loss_change_rate) for i in nets_loss_change_rate]
             global_model.to('cpu')
 
             # update global model
