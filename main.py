@@ -779,11 +779,14 @@ if __name__ == '__main__':
             for net in nets_this_round.values():
                 net.load_state_dict(global_w)
 
-            ########## global_model = global_model,
+            ##########  loss change rate weight
             _, epoch_loss_nets = local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl,
                                                   test_dl=test_dl, global_model=global_model, device=device)
             nets_loss_change_rate = [j/i for j,i in zip(epoch_loss_pre,epoch_loss_nets)]
             nets_loss_weight = [i/sum(nets_loss_change_rate) for i in nets_loss_change_rate]
+            # prepare for next round
+            epoch_loss_pre = epoch_loss_nets
+
             global_model.to('cpu')
 
             # update global model
