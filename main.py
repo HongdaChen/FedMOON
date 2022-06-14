@@ -344,13 +344,14 @@ def train_net_fedcon(net_id, net, global_net, previous_nets, train_dataloader, t
                               weight_decay=args.reg)
 
     criterion = nn.CrossEntropyLoss().cuda()
-    # global_net.to(device)
+    cnt = 0
 
+    # global_net.to(device)
+    ############################################################3
     for previous_net in previous_nets:
         previous_net.cuda()
     global_w = global_net.state_dict()
-
-    cnt = 0
+    ###############################################################3
     cos=torch.nn.CosineSimilarity(dim=-1)
     # mu = 0.001
 

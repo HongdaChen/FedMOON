@@ -100,7 +100,7 @@ def make_plot(path_,tag_,save_path=None):
     plt.savefig(fig_path,bbox_inches='tight')
 
 if __name__ == "__main__":
-    make_plot("mu-0.001-logs/cifar10", "Test_Acc")
+    make_plot("beta-0.1-logs/cifar10", "Test_Acc")
     # make_plot("../logs/shakespeare", "Test/Loss")
     # make_plot("../logs/shakespeare", "Train/Metric")
     # make_plot("../logs/shakespeare", "Train/Loss")
