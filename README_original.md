@@ -35,7 +35,11 @@ This is the code for paper [Model-Contrastive Federated Learning](https://arxiv.
 
 
 ## Usage
+**All_IN**
 
+```
+python main.py --dataset=cifar10 --model=simple-cnn --alg=all_in --lr=0.01 --epochs=10  --comm_round=100 --n_parties=1 --logdir=logs/ --datadir=data/
+```
 mu sample from {0.001,0.01,0.1,1,5}
 
 Here is an example to run MOON on CIFAR-10 with a simple CNN:

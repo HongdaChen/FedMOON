@@ -1072,9 +1072,15 @@ if __name__ == '__main__':
     elif args.alg == 'all_in':
         nets, _, _ = init_nets(args.net_config, 1, args, device='cpu')
         # nets[0].to(device)
-        trainacc, testacc = train_net(0, nets[0], train_dl_global, test_dl, args.epochs, args.lr,
+        for round in range(n_comm_rounds):
+            train_acc, test_acc = train_net(0, nets[0], train_dl_global, test_dl, args.epochs, args.lr,
                                       args.optimizer, args, device=device)
-        logger.info("All in test acc: %f" % testacc)
+            logger.info('>> Global Model Train accuracy: %f' % train_acc)
+            writer.add_scalar("Train_Acc",train_acc,round)
+            logger.info('>> Global Model Test accuracy: %f' % test_acc)
+            writer.add_scalar("Test_Acc", test_acc, round)
+            logger.info("All in test acc: %f" % test_acc)
+
         mkdirs(args.modeldir + 'all_in/')
 
         torch.save(nets[0].state_dict(), args.modeldir+'all_in/'+args.log_file_name+ '.pth')

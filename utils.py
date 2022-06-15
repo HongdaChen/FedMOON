@@ -213,7 +213,10 @@ def compute_accuracy(model, dataloader, get_confusion_matrix=False, device="cpu"
                     else:
                         pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
                         true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
-        avg_loss = sum(loss_collector) / len(loss_collector)
+        try:
+            avg_loss = sum(loss_collector) / len(loss_collector)
+        except:
+            avg_loss = None
     else:
         with torch.no_grad():
             for batch_idx, (x, target) in enumerate(dataloader):
@@ -233,7 +236,10 @@ def compute_accuracy(model, dataloader, get_confusion_matrix=False, device="cpu"
                 else:
                     pred_labels_list = np.append(pred_labels_list, pred_label.cpu().numpy())
                     true_labels_list = np.append(true_labels_list, target.data.cpu().numpy())
-            avg_loss = sum(loss_collector) / len(loss_collector)
+            try:
+                avg_loss = sum(loss_collector) / len(loss_collector)
+            except:
+                avg_loss = None
 
     if get_confusion_matrix:
         conf_matrix = confusion_matrix(true_labels_list, pred_labels_list)
@@ -344,7 +350,7 @@ def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None, noise_lev
         train_ds = dl_obj(datadir, dataidxs=dataidxs, train=True, transform=transform_train, download=True)
         test_ds = dl_obj(datadir, train=False, transform=transform_test, download=True)
 
-        train_dl = data.DataLoader(dataset=train_ds, batch_size=train_bs, drop_last=True, shuffle=True)
+        train_dl = data.DataLoader(dataset=train_ds, batch_size=train_bs, drop_last=False, shuffle=True)
         test_dl = data.DataLoader(dataset=test_ds, batch_size=test_bs, shuffle=False)
 
 
