@@ -29,12 +29,13 @@ LEGEND = {
     "FedEM": "FedEM",
     "fededg": "FedEdg",
     "moon": "MOON",
-    "fedprox": "FedProx"
+    "fedprox": "FedProx",
+    "all_in": "ALL_IN_ONE"
 }
 
 MARKERS = {
     "local": "x",
-    "clustered": "s",
+    "all_in": "s",
     "fedavg": "*",
     "FedEM": "h",
     "fededg": "d",
@@ -46,7 +47,7 @@ MARKERS = {
 
 COLORS = {
     "local": "blue",
-    "clustered": "orange",
+    "all_in": "orange",
     "fedavg": "green",
     "FedEM": "c",
     "fededg": "purple",
@@ -100,7 +101,7 @@ def make_plot(path_,tag_,save_path=None):
     plt.savefig(fig_path,bbox_inches='tight')
 
 if __name__ == "__main__":
-    make_plot("mu-0.001-logs/cifar10", "Test_Acc")
+    make_plot("all_in_logs/cifar10", "Test_Acc")
     # make_plot("../logs/shakespeare", "Test/Loss")
     # make_plot("../logs/shakespeare", "Train/Metric")
     # make_plot("../logs/shakespeare", "Train/Loss")

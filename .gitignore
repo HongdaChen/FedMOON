@@ -1,16 +1,15 @@
 # Don't track content of these folders
 .idea/
-*logs/
 chkpts/
 data/
 
 # Don't track files with these extensioons
-*.ipynb
+# *.ipynb
 *.npy
 *.pth
 *.csv
 *.json
-*.txt
+# *.txt
 *.pt
 
 # Byte-compiled / optimized / DLL files
