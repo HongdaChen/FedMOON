@@ -1,5 +1,7 @@
 import os
 import logging
+from math import log
+
 import numpy as np
 import torch
 import torchvision.transforms as transforms
@@ -373,3 +375,10 @@ def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None, noise_lev
 
 
     return train_dl, test_dl, train_ds, test_ds
+
+    # https://github.com/FedEntropy/FedEntropy/blob/main/Algorithm/DynamicEntropy.py
+def get_entropy(l):
+    entropy = 0.0
+    for i in range(len(l)):
+        entropy += - l[i] * log(l[i], 2)
+    return entropy

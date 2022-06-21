@@ -11,7 +11,7 @@ import datetime
 import random
 from tensorboardX import SummaryWriter
 import torch.nn.functional as F
-
+from math import log
 from model import *
 from utils import *
 
@@ -640,7 +640,18 @@ if __name__ == '__main__':
     X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts = partition_data(
         args.dataset, args.datadir, args.logdir, args.partition, args.n_parties, beta=args.beta)
 
+    entropy = []
+    for j in range(args.n_parties):
+        sum_ = sum(list(traindata_cls_counts[j].values()))
+        p = [i / sum_ for i in list(traindata_cls_counts[j].values())]
+        entropy.append(get_entropy(p))
+
+    net_idx = np.where(entropy>np.mean(entropy))[0]
+    entropy_weight = [entropy[i] for i in net_idx]
+    entropy_weight = [i/sum(entropy_weight) for i in entropy_weight]
+
     n_party_per_round = int(args.n_parties * args.sample_fraction)
+
     party_list = [i for i in range(args.n_parties)]
     party_list_rounds = []
     if n_party_per_round != args.n_parties:
@@ -648,7 +659,8 @@ if __name__ == '__main__':
             party_list_rounds.append(random.sample(party_list, n_party_per_round))
     else:
         for i in range(args.comm_round):
-            party_list_rounds.append(party_list)
+            # party_list_rounds.append(party_list)
+            party_list_rounds.append(list(net_idx))
 
     n_classes = len(np.unique(y_train))
 
