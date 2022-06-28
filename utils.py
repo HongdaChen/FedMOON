@@ -8,6 +8,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import torch.nn as nn
 import random
+from math import log
 from sklearn.metrics import confusion_matrix
 
 from model import *
@@ -367,3 +368,9 @@ def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None, noise_lev
 
 
     return train_dl, test_dl, train_ds, test_ds
+
+def get_entropy(l):
+    entropy = 0.0
+    for i in range(len(l)):
+        entropy += - l[i] * log(l[i], 2)
+    return entropy

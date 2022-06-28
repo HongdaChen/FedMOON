@@ -514,6 +514,16 @@ if __name__ == '__main__':
     X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts = partition_data(
         args.dataset, args.datadir, args.logdir, args.partition, args.n_parties, beta=args.beta)
 
+    entropy = []
+    for j in range(args.n_parties):
+        sum_ = sum(list(traindata_cls_counts[j].values()))
+        p = [i / sum_ for i in list(traindata_cls_counts[j].values())]
+        entropy.append(get_entropy(p))
+
+    net_idx = np.where(entropy>np.mean(entropy))[0]
+    entropy_weight = [entropy[i] for i in range(args.n_parties)]
+    entropy_weight = [i/sum(entropy_weight) for i in entropy_weight]
+
     n_party_per_round = int(args.n_parties * args.sample_fraction)
     party_list = [i for i in range(args.n_parties)]
     party_list_rounds = []
@@ -767,7 +777,7 @@ if __name__ == '__main__':
             global_model.to('cpu')
             torch.save(global_model.state_dict(), args.modeldir +'fedprox/'+args.log_file_name+ '.pth')
     elif args.alg == 'fededg':
-        epoch_loss_pre = [1.0 for i in range(args.n_parties)]
+        # epoch_loss_pre = [1.0 for i in range(args.n_parties)]
         for round in range(n_comm_rounds):
             logger.info("in comm round:" + str(round))
             party_list_this_round = party_list_rounds[round]
@@ -783,10 +793,12 @@ if __name__ == '__main__':
             ##########  loss change rate weight
             _, epoch_loss_nets = local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl,
                                                   test_dl=test_dl, global_model=global_model, device=device)
-            nets_loss_change_rate = [j/i for j,i in zip(epoch_loss_pre,epoch_loss_nets)]
-            nets_loss_weight = [i/sum(nets_loss_change_rate) for i in nets_loss_change_rate]
+            # nets_loss_change_rate = [j/i for j,i in zip(epoch_loss_pre,epoch_loss_nets)]
+            # nets_loss_weight = [i/sum(nets_loss_change_rate) for i in nets_loss_change_rate]
             # prepare for next round
-            epoch_loss_pre = epoch_loss_nets
+            # epoch_loss_pre = epoch_loss_nets
+
+            nets_loss_weight = [i/sum(epoch_loss_nets) for i in epoch_loss_nets]
 
             global_model.to('cpu')
 
