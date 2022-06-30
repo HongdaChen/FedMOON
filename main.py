@@ -244,80 +244,6 @@ def train_net_fedprox(net_id, net, global_net, train_dataloader, test_dataloader
     return train_acc, test_acc
 
 
-def train_net_fededg(net_id, net, global_net, train_dataloader, test_dataloader, epochs, lr, args_optimizer, mu, args,
-                      device="cpu"):
-    # global_net.to(device)
-    net = nn.DataParallel(net)
-    net.cuda()
-    # else:
-    #     net.to(device)
-    logger.info('Training network %s' % str(net_id))
-    logger.info('n_training: %d' % len(train_dataloader))
-    logger.info('n_test: %d' % len(test_dataloader))
-
-    train_acc, _ = compute_accuracy(net, train_dataloader, device=device)
-    test_acc, conf_matrix, _ = compute_accuracy(net, test_dataloader, get_confusion_matrix=True, device=device)
-
-    logger.info('>> Pre-Training Training accuracy: {}'.format(train_acc))
-    logger.info('>> Pre-Training Test accuracy: {}'.format(test_acc))
-
-    if args_optimizer == 'adam':
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr, weight_decay=args.reg)
-    elif args_optimizer == 'amsgrad':
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr, weight_decay=args.reg,
-                               amsgrad=True)
-    elif args_optimizer == 'sgd':
-        optimizer = optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=lr, momentum=0.9,
-                              weight_decay=args.reg)
-
-    criterion = nn.CrossEntropyLoss().cuda()
-
-    cnt = 0
-    global_weight_collector = list(global_net.cuda().parameters())
-
-
-    for epoch in range(epochs):
-        epoch_loss_collector = []
-        for batch_idx, (x, target) in enumerate(train_dataloader):
-            x, target = x.cuda(), target.cuda()
-
-            optimizer.zero_grad()
-            x.requires_grad = False
-            target.requires_grad = False
-            target = target.long()
-
-            _,_,out = net(x)
-            loss = criterion(out, target)
-
-            # for fedprox
-            fed_edg_reg = 0.0
-            # fed_prox_reg += np.linalg.norm([i - j for i, j in zip(global_weight_collector, get_trainable_parameters(net).tolist())], ord=2)
-            for param_index, param in enumerate(net.parameters()):
-                kl = F.kl_div(param.softmax(dim=-1).log(), global_weight_collector[param_index].softmax(dim=-1), reduction='sum')
-                fed_edg_reg += mu * kl
-            loss += fed_edg_reg
-
-            loss.backward()
-            optimizer.step()
-
-            cnt += 1
-            epoch_loss_collector.append(loss.item())
-
-        epoch_loss = sum(epoch_loss_collector) / len(epoch_loss_collector)
-        logger.info('Epoch: %d Loss: %f' % (epoch, epoch_loss))
-
-
-    train_acc, _ = compute_accuracy(net, train_dataloader, device=device)
-    test_acc, conf_matrix, _ = compute_accuracy(net, test_dataloader, get_confusion_matrix=True, device=device)
-
-    logger.info('>> Training accuracy: %f' % train_acc)
-    logger.info('>> Test accuracy: %f' % test_acc)
-    net.to('cpu')
-    logger.info(' ** Training complete **')
-    return train_acc, test_acc, epoch_loss
-
-
-
 def train_net_fedcon(net_id, net, global_net, previous_nets, train_dataloader, test_dataloader, epochs, lr, args_optimizer, mu, temperature, args,
                       round, device="cpu"):
     net = nn.DataParallel(net)
@@ -440,9 +366,6 @@ def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, gl
                                         device=device)
         elif args.alg == 'fedprox':
             trainacc, testacc = train_net_fedprox(net_id, net, global_model, train_dl_local, test_dl, n_epoch, args.lr,
-                                                  args.optimizer, args.mu, args, device=device)
-        elif args.alg == 'fededg':
-            trainacc, testacc, epoch_loss = train_net_fededg(net_id, net, global_model, train_dl_local, test_dl, n_epoch, args.lr,
                                                   args.optimizer, args.mu, args, device=device)
         elif args.alg == 'moon':
             prev_models=[]

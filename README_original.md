@@ -46,8 +46,21 @@ python main.py --dataset=cifar10 --model=simple-cnn --alg=moon --lr=0.01 --mu=5 
 ```
 
 FedAvg:
+- for epochs: with batch-size=64
 ```
-python main.py --dataset=cifar10 --model=simple-cnn --alg=fedavg --lr=0.01 --mu=5 --epochs=10  --comm_round=100  --n_parties=10  --partition=noniid --beta=0.5  --logdir=mu-5-logs/ --datadir=data/
+python main.py --dataset=cifar10 --model=simple-cnn --alg=fedavg --lr=0.01 --mu=5 --epochs=1  --batch-size=64 --comm_round=100  --n_parties=10  --partition=noniid --beta=0.1  --logdir=beta-0.1-fedavg-e1-b64-logs/ --datadir=data/
+
+python main.py --dataset=cifar10 --model=simple-cnn --alg=fedavg --lr=0.01 --mu=5 --epochs=5  --batch-size=64 --comm_round=100  --n_parties=10  --partition=noniid --beta=0.1  --logdir=beta-0.1-fedavg-e5-b64-logs/ --datadir=data/
+
+python main.py --dataset=cifar10 --model=simple-cnn --alg=fedavg --lr=0.01 --mu=5 --epochs=10  --batch-size=64 --comm_round=100  --n_parties=10  --partition=noniid --beta=0.1  --logdir=beta-0.1-fedavg-e10-b64-logs/ --datadir=data/
+```
+- for batch-size: with epochs=1
+
+```
+
+python main.py --dataset=cifar10 --model=simple-cnn --alg=fedavg --lr=0.01 --mu=5 --epochs=1  --batch-size=32 --comm_round=100  --n_parties=10  --partition=noniid --beta=0.1  --logdir=beta-0.1-fedavg-e1-b32-logs/ --datadir=data/
+
+python main.py --dataset=cifar10 --model=simple-cnn --alg=fedavg --lr=0.01 --mu=5 --epochs=1  --batch-size=16 --comm_round=100  --n_parties=10  --partition=noniid --beta=0.1  --logdir=beta-0.1-fedavg-e1-b16-logs/ --datadir=data/
 ```
 
 FedEdg:
