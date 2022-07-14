@@ -481,7 +481,7 @@ if __name__ == '__main__':
     mkdirs(args.logdir)
     mkdirs(args.modeldir)
     logs_path = os.path.join(args.logdir, args.dataset, args.alg, "test", "global")
-    os.makedirs(logs_path, exist_ok=True)
+    os.makedirs(logs_path) # exist_ok=True to override the already exists dir.
     writer = SummaryWriter(logs_path)
     if args.log_file_name is None:
         argument_path = 'experiment_arguments-%s.json' % datetime.datetime.now().strftime("%Y-%m-%d-%H%M-%S")
