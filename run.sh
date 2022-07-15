@@ -1,4 +1,4 @@
-# $1 stands for agg_weight; $2 stands for n_parties; $3 stands for dataset; $4 stands for batch_size
+# $1 stands for agg_weight; $2 stands for n_parties; $3 stands for dataset; $4 stands for batch_size; $5 stands for beta
 ## fededg
 python main.py \
 --dataset=$3 \
@@ -12,7 +12,7 @@ python main.py \
 --comm_round=100  \
 --n_parties=$2  \
 --partition=noniid \
---beta=0.1  \
+--beta=$5  \
 --logdir=logs/fededg/$1/beta-0.1/mu-0.001-b$4-e10-np$2 \
 --datadir=data/
 
@@ -30,7 +30,7 @@ python main.py \
 --comm_round=100  \
 --n_parties=$2  \
 --partition=noniid \
---beta=0.1  \
+--beta=$5  \
 --logdir=logs/fedavg/$1/beta-0.1/mu-5-b$4-e10-np$2 \
 --datadir=data/
 
@@ -47,7 +47,7 @@ python main.py \
 --comm_round=100  \
 --n_parties=$2  \
 --partition=noniid \
---beta=0.1  \
+--beta=$5  \
 --logdir=logs/moon/$1/beta-0.1/mu-5-b$4-e10-np$2 \
 --datadir=data/
 
@@ -65,9 +65,7 @@ python main.py \
 --comm_round=100  \
 --n_parties=$2  \
 --partition=noniid \
---beta=0.1  \
+--beta=$5  \
 --logdir=logs/fedprox/$1/beta-0.1/mu-0.1-b$4-e10-np$2 \
 --datadir=data/
-
-
 
