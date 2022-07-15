@@ -13,7 +13,7 @@ python main.py \
 --n_parties=$2  \
 --partition=noniid \
 --beta=$5  \
---logdir=logs/fededg/$1/beta-0.1/mu-0.001-b$4-e10-np$2 \
+--logdir=logs/fededg/$1/beta-$5/mu-0.001-b$4-e10-np$2 \
 --datadir=data/
 
 ## fedavg
@@ -31,7 +31,7 @@ python main.py \
 --n_parties=$2  \
 --partition=noniid \
 --beta=$5  \
---logdir=logs/fedavg/$1/beta-0.1/mu-5-b$4-e10-np$2 \
+--logdir=logs/fedavg/$1/beta-$5/mu-5-b$4-e10-np$2 \
 --datadir=data/
 
 ## moon
@@ -48,7 +48,7 @@ python main.py \
 --n_parties=$2  \
 --partition=noniid \
 --beta=$5  \
---logdir=logs/moon/$1/beta-0.1/mu-5-b$4-e10-np$2 \
+--logdir=logs/moon/$1/beta-$5/mu-5-b$4-e10-np$2 \
 --datadir=data/
 
 ## fedprox
@@ -66,6 +66,6 @@ python main.py \
 --n_parties=$2  \
 --partition=noniid \
 --beta=$5  \
---logdir=logs/fedprox/$1/beta-0.1/mu-0.1-b$4-e10-np$2 \
+--logdir=logs/fedprox/$1/beta-$5/mu-0.1-b$4-e10-np$2 \
 --datadir=data/
 
