@@ -42,41 +42,39 @@ Here is an example to run MOON on CIFAR-10 with a simple CNN:
 
 MOON:
 ```
-python main.py --dataset=cifar10 --model=simple-cnn --alg=moon --lr=0.01 --mu=5 --epochs=10  --comm_round=100  --n_parties=10  --partition=noniid --beta=0.5  --logdir=mu-5-logs/ --datadir=data/ 
-```
-```commandline
-python main.py --dataset=cifar100 --model=simple-cnn --alg=moon --lr=0.01 --mu=5 --epochs=10  --comm_round=100  --n_parties=100  --partition=noniid --beta=0.01  --logdir=beta-0.01-100c-logs/ --datadir=data/ 
-```
-
-FedAvg:
-```
-python main.py --dataset=cifar10 --model=simple-cnn --alg=fedavg --lr=0.01 --mu=5 --epochs=10  --comm_round=100  --n_parties=10  --partition=noniid --beta=0.5  --logdir=mu-5-logs/ --datadir=data/
-```
-
-FedEdg:
-```
-python main.py --dataset=cifar10 --model=simple-cnn --alg=fededg --lr=0.01 --mu=0.001 --epochs=10  --comm_round=100  --n_parties=10  --partition=noniid --beta=0.5  --logdir=mu-5-logs/ --datadir=data/ 
-```
-```commandline
-python main.py --dataset=cifar100 --model=simple-cnn --alg=fededg --lr=0.01 --mu=0.01 --epochs=10  --comm_round=100  --n_parties=100  --partition=noniid --beta=0.01  --logdir=beta-0.01-100c-fededg-mu-0.001-logs/ --datadir=data/
+python main.py \
+--dataset=cifar10 \
+--model=simple-cnn \
+--alg=moon \
+--lr=0.01 \
+--mu=5 \
+--epochs=10  \
+--comm_round=100  \
+--n_parties=10  \
+--partition=noniid \
+--beta=0.1  \
+--logdir=mu-5-logs/ \
+--datadir=data/ 
 ```
 
-FedProx:
 ```
-python main.py --dataset=cifar10 --model=simple-cnn --alg=fedprox --lr=0.01 --mu=0.1 --epochs=10  --comm_round=100  --n_parties=10  --partition=noniid --beta=0.5  --logdir=mu-5-logs/ --datadir=data/ 
+python main.py \
+--dataset=cifar100 \
+--model=simple-cnn \
+--alg=moon \
+--lr=0.01 \
+--batch_size=32 \
+--mu=5 \
+--epochs=10  \
+--comm_round=100  \
+--n_parties=100  \
+--partition=noniid \
+--beta=0.1  \
+--logdir=xxxxmoon-logs/ \
+--datadir=data/ 
 ```
 
 
-Cifar100
-
-Moon
-```
-python main.py --dataset=cifar100 --model=simple-cnn --alg=moon --lr=0.01 --mu=5 --epochs=10  --comm_round=100  --n_parties=10  --partition=noniid --beta=0.1  --logdir=beta-0.1-logs/ --datadir=data/ 
-```
-Fededg
-```
-python main.py --dataset=cifar100 --model=simple-cnn --alg=fededg --lr=0.01 --mu=0.001 --epochs=10  --comm_round=100  --n_parties=100 --partition=noniid --beta=0.001  --logdir=beta-0.1-logs/ --datadir=data/ 
-```
 
 ## Tiny-ImageNet
 You can download Tiny-ImageNet [here](http://cs231n.stanford.edu/tiny-imagenet-200.zip). Then, you can follow the [instructions](https://github.com/AI-secure/DBA/blob/master/utils/tinyimagenet_reformat.py) to reformat the validation folder.
