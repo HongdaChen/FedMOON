@@ -521,25 +521,34 @@ if __name__ == '__main__':
     X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts = partition_data(
         args.dataset, args.datadir, args.logdir, args.partition, args.n_parties, beta=args.beta)
 
-    entropy = []
-    for j in range(args.n_parties):
-        sum_ = sum(list(traindata_cls_counts[j].values()))
-        p = [i / sum_ for i in list(traindata_cls_counts[j].values())]
-        entropy.append(get_entropy(p))
 
-    net_idx = np.where(entropy>np.mean(entropy))[0]
-    entropy_weight = [entropy[i] for i in range(args.n_parties)]
-    entropy_weight = [i/sum(entropy_weight) for i in entropy_weight]
 
     n_party_per_round = int(args.n_parties * args.sample_fraction)
     party_list = [i for i in range(args.n_parties)]
     party_list_rounds = []
+    entropy_w_list_rounds = []
+    entropy = []
     if n_party_per_round != args.n_parties:
         for i in range(args.comm_round):
             party_list_rounds.append(random.sample(party_list, n_party_per_round))
+            for j in party_list_rounds[i]:
+                sum_ = sum(list(traindata_cls_counts[j].values()))
+                p = [x / sum_ for x in list(traindata_cls_counts[j].values())]
+                entropy.append(get_entropy(p))
+                # net_idx = np.where(entropy>np.mean(entropy))[0]
+            entropy_weight = [e / sum(entropy) for e in entropy]
+            entropy_w_list_rounds.append(entropy_weight)
     else:
         for i in range(args.comm_round):
             party_list_rounds.append(party_list)
+            for j in party_list_rounds[i]:
+                sum_ = sum(list(traindata_cls_counts[j].values()))
+                p = [x / sum_ for x in list(traindata_cls_counts[j].values())]
+                entropy.append(get_entropy(p))
+                # net_idx = np.where(entropy>np.mean(entropy))[0]
+            entropy_weight = [e / sum(entropy) for e in entropy]
+            entropy_w_list_rounds.append(entropy_weight)
+
 
     n_classes = len(np.unique(y_train))
 
@@ -625,10 +634,10 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * entropy_weight[net_id]
+                            global_w[key] = net_para[key] * entropy_w_list_rounds[round][net_id]
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * entropy_weight[net_id]
+                            global_w[key] += net_para[key] * entropy_w_list_rounds[round][net_id]
             elif args.agg_weight == 'loss':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
@@ -643,11 +652,11 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_weight[net_id])
+                            global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
                     else:
                         for key in net_para:
                             global_w[key] += net_para[key] * (
-                                        0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_weight[net_id])
+                                        0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
             elif args.agg_weight == 'vl' or 'lv':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
@@ -665,23 +674,23 @@ if __name__ == '__main__':
                     if net_id == 0:
                         for key in net_para:
                             global_w[key] = net_para[key] * (
-                                        0.5 * entropy_weight[net_id] + 0.5 * nets_loss_weight[net_id])
+                                        0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
                     else:
                         for key in net_para:
                             global_w[key] += net_para[key] * (
-                                        0.5 * entropy_weight[net_id] + 0.5 * nets_loss_weight[net_id])
+                                        0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
             elif args.agg_weight == 'vel' or 'vle' or 'evl' or 'elv' or 'lve' or 'lev':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
                             global_w[key] = net_para[key] * (
-                                        0.4 * fed_avg_freqs + 0.3 * entropy_weight[net_id] + 0.3 * nets_loss_weight[
+                                        0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[
                                     net_id])
                     else:
                         for key in net_para:
                             global_w[key] += net_para[key] * (
-                                        0.4 * fed_avg_freqs + 0.3 * entropy_weight[net_id] + 0.3 * nets_loss_weight[
+                                        0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[
                                     net_id])
             elif args.agg_weight == 'accumulate':
                 for net_id, net in enumerate(nets_this_round.values()):
@@ -783,10 +792,10 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * entropy_weight[net_id]
+                            global_w[key] = net_para[key] * entropy_w_list_rounds[round][net_id]
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * entropy_weight[net_id]
+                            global_w[key] += net_para[key] * entropy_w_list_rounds[round][net_id]
             elif args.agg_weight == 'loss':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
@@ -801,11 +810,11 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_weight[net_id])
+                            global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
                     else:
                         for key in net_para:
                             global_w[key] += net_para[key] * (
-                                        0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_weight[net_id])
+                                        0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
             elif args.agg_weight == 'vl' or 'lv':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
@@ -823,23 +832,23 @@ if __name__ == '__main__':
                     if net_id == 0:
                         for key in net_para:
                             global_w[key] = net_para[key] * (
-                                        0.5 * entropy_weight[net_id] + 0.5 * nets_loss_weight[net_id])
+                                        0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
                     else:
                         for key in net_para:
                             global_w[key] += net_para[key] * (
-                                        0.5 * entropy_weight[net_id] + 0.5 * nets_loss_weight[net_id])
+                                        0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
             elif args.agg_weight == 'vel' or 'vle' or 'evl' or 'elv' or 'lve' or 'lev':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
                             global_w[key] = net_para[key] * (
-                                        0.4 * fed_avg_freqs + 0.3 * entropy_weight[net_id] + 0.3 * nets_loss_weight[
+                                        0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[
                                     net_id])
                     else:
                         for key in net_para:
                             global_w[key] += net_para[key] * (
-                                        0.4 * fed_avg_freqs + 0.3 * entropy_weight[net_id] + 0.3 * nets_loss_weight[
+                                        0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[
                                     net_id])
             elif args.agg_weight == 'accumulate':
                 for net_id, net in enumerate(nets_this_round.values()):
@@ -917,10 +926,10 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * entropy_weight[net_id]
+                            global_w[key] = net_para[key] * entropy_w_list_rounds[round][net_id]
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * entropy_weight[net_id]
+                            global_w[key] += net_para[key] * entropy_w_list_rounds[round][net_id]
             elif args.agg_weight == 'loss':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
@@ -935,10 +944,10 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_weight[net_id])
+                            global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_weight[net_id])
+                            global_w[key] += net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
             elif args.agg_weight == 'vl' or 'lv':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
@@ -953,19 +962,19 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * (0.5 * entropy_weight[net_id] + 0.5 * nets_loss_weight[net_id])
+                            global_w[key] = net_para[key] * (0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * (0.5 * entropy_weight[net_id] + 0.5 * nets_loss_weight[net_id])
+                            global_w[key] += net_para[key] * (0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
             elif args.agg_weight == 'vel' or 'vle' or 'evl' or 'elv' or 'lve' or 'lev':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * (0.4 * fed_avg_freqs + 0.3 * entropy_weight[net_id] + 0.3 * nets_loss_weight[net_id])
+                            global_w[key] = net_para[key] * (0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[net_id])
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * (0.4 * fed_avg_freqs + 0.3 * entropy_weight[net_id] + 0.3 * nets_loss_weight[net_id])
+                            global_w[key] += net_para[key] * (0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[net_id])
             elif args.agg_weight == 'accumulate':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
@@ -1055,10 +1064,10 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * entropy_weight[net_id]
+                            global_w[key] = net_para[key] * entropy_w_list_rounds[round][net_id]
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * entropy_weight[net_id]
+                            global_w[key] += net_para[key] * entropy_w_list_rounds[round][net_id]
             elif args.agg_weight == 'loss':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
@@ -1073,10 +1082,10 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_weight[net_id])
+                            global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_weight[net_id])
+                            global_w[key] += net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
             elif args.agg_weight == 'vl' or 'lv':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
@@ -1091,19 +1100,19 @@ if __name__ == '__main__':
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * (0.5 * entropy_weight[net_id] + 0.5 * nets_loss_weight[net_id])
+                            global_w[key] = net_para[key] * (0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * (0.5 * entropy_weight[net_id] + 0.5 * nets_loss_weight[net_id])
+                            global_w[key] += net_para[key] * (0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
             elif args.agg_weight == 'vel' or 'vle' or 'evl' or 'elv' or 'lve' or 'lev':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
                     if net_id == 0:
                         for key in net_para:
-                            global_w[key] = net_para[key] * (0.4 * fed_avg_freqs + 0.3 * entropy_weight[net_id] + 0.3 * nets_loss_weight[net_id])
+                            global_w[key] = net_para[key] * (0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[net_id])
                     else:
                         for key in net_para:
-                            global_w[key] += net_para[key] * (0.4 * fed_avg_freqs + 0.3 * entropy_weight[net_id] + 0.3 * nets_loss_weight[net_id])
+                            global_w[key] += net_para[key] * (0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[net_id])
             elif args.agg_weight == 'accumulate':
                 for net_id, net in enumerate(nets_this_round.values()):
                     net_para = net.state_dict()
