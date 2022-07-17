@@ -527,9 +527,10 @@ if __name__ == '__main__':
     party_list = [i for i in range(args.n_parties)]
     party_list_rounds = []
     entropy_w_list_rounds = []
-    entropy = []
+
     if n_party_per_round != args.n_parties:
         for i in range(args.comm_round):
+            entropy = []
             party_list_rounds.append(random.sample(party_list, n_party_per_round))
             for j in party_list_rounds[i]:
                 sum_ = sum(list(traindata_cls_counts[j].values()))
@@ -540,6 +541,7 @@ if __name__ == '__main__':
             entropy_w_list_rounds.append(entropy_weight)
     else:
         for i in range(args.comm_round):
+            entropy = []
             party_list_rounds.append(party_list)
             for j in party_list_rounds[i]:
                 sum_ = sum(list(traindata_cls_counts[j].values()))
