@@ -27,3 +27,4 @@ bash run.sh el 10 cifar10 64 0.5 1
 ```commandline
 bash run.sh el 100 cifar100 32 0.5 1
 ```
+

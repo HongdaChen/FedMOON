@@ -30,7 +30,11 @@ LEGEND = {
     "fededg": "FedEdg",
     "moon": "MOON",
     "fedprox": "FedProx",
-    "all_in": "ALL_IN_ONE"
+    "all_in": "ALL_IN_ONE",
+    "fedavg_entropy": "FedAvg+entropy",
+    "fededg_entropy": "FedEdg+entropy",
+    "fedprox_entropy": "FedProx+entropy",
+    "moon_entropy": "MOON+entropy"
 }
 
 MARKERS = {
@@ -42,7 +46,11 @@ MARKERS = {
     "moon": "4",
     "personalized": "X",
     "DEM": "|",
-    "fedprox": "p"
+    "fedprox": "^",
+    "fedavg_entropy": "*",
+    "fededg_entropy": "d",
+    "fedprox_entropy": "^",
+    "moon_entropy": "4"
 }
 
 COLORS = {
@@ -54,7 +62,27 @@ COLORS = {
     "moon": "red",
     "personalized": "brown",
     "DEM": "pink",
-    "fedprox": "cyan"
+    "fedprox": "cyan",
+    "fedavg_entropy": "green",
+    "fededg_entropy": "purple",
+    "fedprox_entropy": "cyan",
+    "moon_entropy": "red"
+}
+
+LINESTYLE = {
+    "local": "-",
+    "all_in": "-",
+    "fedavg": "-",
+    "FedEM": "-",
+    "fededg": "-",
+    "moon": "-",
+    "personalized": "-",
+    "DEM": "-",
+    "fedprox": "-",
+    "fedavg_entropy": ":",
+    "fededg_entropy": ":",
+    "fedprox_entropy": ":",
+    "moon_entropy": ":"
 }
 
 def make_plot(path_,tag_,save_path=None):
@@ -88,6 +116,7 @@ def make_plot(path_,tag_,save_path=None):
                                 markersize=10,
                                 markeredgewidth=1,
                                 label=f"{LEGEND[algorithm]}",
+                                linestyle=LINESTYLE[algorithm],
                                 color=COLORS[algorithm])
     ax.grid(True,linewidth=2)
     ax.set_ylabel(AXE_LABELS[tag_],fontsize=50)
@@ -101,7 +130,10 @@ def make_plot(path_,tag_,save_path=None):
     plt.savefig(fig_path,bbox_inches='tight')
 
 if __name__ == "__main__":
-    make_plot("logs/pic/beta-0.1/fededg-entropy-others-volume/cifar100", "Test_Acc")
+    make_plot("logs/pic/beta-0.1/cifar100", "Test_Acc")
+    make_plot("logs/pic/beta-0.1/cifar10", "Test_Acc")
+    make_plot("logs/pic/beta-0.5/cifar100", "Test_Acc")
+    make_plot("logs/pic/beta-0.5/cifar10", "Test_Acc")
     # make_plot("../logs/shakespeare", "Test/Loss")
     # make_plot("../logs/shakespeare", "Train/Metric")
     # make_plot("../logs/shakespeare", "Train/Loss")
