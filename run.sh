@@ -1,21 +1,21 @@
 # $1 stands for agg_weight; $2 stands for n_parties; $3 stands for dataset; $4 stands for batch_size; $5 stands for beta; $6 for sample_fraction
 ## fededg
-python main.py \
---dataset=$3 \
---model=simple-cnn \
---alg=fededg \
---sample_fraction=$6 \
---lr=0.01 \
---batch_size=$4 \
---mu=0.001 \
---agg_weight=$1 \
---epochs=10  \
---comm_round=100  \
---n_parties=$2  \
---partition=noniid \
---beta=$5  \
---logdir=logs/sample/fededg/$1/beta-$5/mu-0.001-b$4-e10-np$2-sample_fraction-$6 \
---datadir=data/
+#python main.py \
+#--dataset=$3 \
+#--model=simple-cnn \
+#--alg=fededg \
+#--sample_fraction=$6 \
+#--lr=0.01 \
+#--batch_size=$4 \
+#--mu=0.001 \
+#--agg_weight=$1 \
+#--epochs=10  \
+#--comm_round=100  \
+#--n_parties=$2  \
+#--partition=noniid \
+#--beta=$5  \
+#--logdir=logs/sample/fededg/$1/beta-$5/mu-0.001-b$4-e10-np$2-sample_fraction-$6 \
+#--datadir=data/
 
 ## fedavg
 

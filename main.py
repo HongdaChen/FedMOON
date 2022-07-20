@@ -421,6 +421,105 @@ def train_net_fedcon(net_id, net, global_net, previous_nets, train_dataloader, t
     logger.info(' ** Training complete **')
     return train_acc, test_acc, epoch_loss
 
+def train_net_fedext(net_id, net, global_net, previous_nets, train_dataloader, test_dataloader, epochs, lr, args_optimizer, mu, temperature, args,
+                      round, device="cpu"):
+    net = nn.DataParallel(net)
+    net.cuda()
+    logger.info('Training network %s' % str(net_id))
+    logger.info('n_training: %d' % len(train_dataloader))
+    logger.info('n_test: %d' % len(test_dataloader))
+
+    # train_acc, _ = compute_accuracy(net, train_dataloader, device=device)
+    #
+    # test_acc, conf_matrix, _ = compute_accuracy(net, test_dataloader, get_confusion_matrix=True, device=device)
+    #
+    # logger.info('>> Pre-Training Training accuracy: {}'.format(train_acc))
+    # logger.info('>> Pre-Training Test accuracy: {}'.format(test_acc))
+
+
+    if args_optimizer == 'adam':
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr, weight_decay=args.reg)
+    elif args_optimizer == 'amsgrad':
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr, weight_decay=args.reg,
+                               amsgrad=True)
+    elif args_optimizer == 'sgd':
+        optimizer = optim.SGD(filter(lambda p: p.requires_grad, net.parameters()), lr=lr, momentum=0.9,
+                              weight_decay=args.reg)
+
+    criterion = nn.CrossEntropyLoss().cuda()
+    cnt = 0
+
+    # global_net.to(device)
+    ############################################################3
+    for previous_net in previous_nets:
+        previous_net.cuda()
+    global_w = global_net.state_dict()
+    ###############################################################3
+    cos=torch.nn.CosineSimilarity(dim=-1)
+    # mu = 0.001
+
+    for epoch in range(epochs):
+        epoch_loss_collector = []
+        epoch_loss1_collector = []
+        epoch_loss2_collector = []
+        for batch_idx, (x, target) in enumerate(train_dataloader):
+            x, target = x.cuda(), target.cuda()
+
+            optimizer.zero_grad()
+            x.requires_grad = False
+            target.requires_grad = False
+            target = target.long()
+
+            pro1, _, out = net(x)
+            pro2, _, _ = global_net(x)
+
+            posi = cos(pro1, pro2)
+            logits = posi.reshape(-1,1)
+
+            for previous_net in previous_nets:
+                previous_net.cuda()
+                pro3, _, _ = previous_net(x)
+                nega = cos(pro1, pro3)
+                logits = torch.cat((logits, nega.reshape(-1,1)), dim=1)
+
+                previous_net.to('cpu')
+
+            logits /= temperature
+            labels = torch.zeros(x.size(0)).cuda().long()
+
+            loss2 = mu * criterion(logits, labels)
+
+
+            loss1 = criterion(out, target)
+            loss = loss1 + loss2
+
+            loss.backward()
+            optimizer.step()
+
+            cnt += 1
+            epoch_loss_collector.append(loss.item())
+            epoch_loss1_collector.append(loss1.item())
+            epoch_loss2_collector.append(loss2.item())
+
+        epoch_loss = sum(epoch_loss_collector) / len(epoch_loss_collector)
+        epoch_loss1 = sum(epoch_loss1_collector) / len(epoch_loss1_collector)
+        epoch_loss2 = sum(epoch_loss2_collector) / len(epoch_loss2_collector)
+        logger.info('Epoch: %d Loss: %f Loss1: %f Loss2: %f' % (epoch, epoch_loss, epoch_loss1, epoch_loss2))
+
+
+    for previous_net in previous_nets:
+        previous_net.to('cpu')
+
+    train_acc, test_acc = None, None
+    # train_acc, _ = compute_accuracy(net, train_dataloader, device=device)
+    # test_acc, conf_matrix, _ = compute_accuracy(net, test_dataloader, get_confusion_matrix=True, device=device)
+    #
+    # logger.info('>> Training accuracy: %f' % train_acc)
+    # logger.info('>> Test accuracy: %f' % test_acc)
+    net.to('cpu')
+    logger.info(' ** Training complete **')
+    return train_acc, test_acc, epoch_loss
+
 
 def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, global_model = None, prev_model_pool = None, server_c = None, clients_c = None, round=None, device="cpu"):
     avg_acc = 0.0
@@ -456,6 +555,12 @@ def local_train_net(nets, args, net_dataidx_map, train_dl=None, test_dl=None, gl
             for i in range(len(prev_model_pool)):
                 prev_models.append(prev_model_pool[i][net_id])
             trainacc, testacc, epoch_loss = train_net_fedcon(net_id, net, global_model, prev_models, train_dl_local, test_dl, n_epoch, args.lr,
+                                                  args.optimizer, args.mu, args.temperature, args, round, device=device)
+        elif args.alg == 'fedext':
+            prev_models=[]
+            for i in range(len(prev_model_pool)):
+                prev_models.append(prev_model_pool[i][net_id])
+            trainacc, testacc, epoch_loss = train_net_fedext(net_id, net, global_model, prev_models, train_dl_local, test_dl, n_epoch, args.lr,
                                                   args.optimizer, args.mu, args.temperature, args, round, device=device)
 
         elif args.alg == 'local_training':
@@ -758,6 +863,188 @@ if __name__ == '__main__':
                 #################################################################
                 for nets_id, old_nets in enumerate(old_nets_pool):
                     torch.save({'pool'+ str(nets_id) + '_'+'net'+str(net_id): net.state_dict() for net_id, net in old_nets.items()}, args.modeldir+'fedcon/prev_model_pool_'+args.log_file_name+'.pth')
+                #################################################################
+
+    elif args.alg == 'fedext':
+        #######################################################################
+        old_nets_pool = []
+        if args.load_pool_file:
+            for nets_id in range(args.model_buffer_size):
+                old_nets, _, _ = init_nets(args.net_config, args.n_parties, args, device='cpu')
+                checkpoint = torch.load(args.load_pool_file)
+                for net_id, net in old_nets.items():
+                    net.load_state_dict(checkpoint['pool' + str(nets_id) + '_'+'net'+str(net_id)])
+                old_nets_pool.append(old_nets)
+        elif args.load_first_net:
+            if len(old_nets_pool) < args.model_buffer_size:
+                old_nets = copy.deepcopy(nets)
+                for _, net in old_nets.items():
+                    net.eval()
+                    for param in net.parameters():
+                        param.requires_grad = False
+        ###########################################################################
+        best_acc = 0.0
+        for round in range(n_comm_rounds):
+            logger.info("in comm round:" + str(round))
+            party_list_this_round = party_list_rounds[round]
+            #######################################################################
+            global_model.eval()
+            for param in global_model.parameters():
+                param.requires_grad = False
+            #######################################################################
+
+            global_w = global_model.state_dict()
+
+            if args.server_momentum:
+                old_w = copy.deepcopy(global_model.state_dict())
+
+            nets_this_round = {k: nets[k] for k in party_list_this_round}
+            for net in nets_this_round.values():
+                net.load_state_dict(global_w)
+
+            ###################### global_model = global_model, prev_model_pool=old_nets_pool, round=round, ##########
+            _, epoch_loss_nets = local_train_net(nets_this_round, args, net_dataidx_map, train_dl=train_dl, test_dl=test_dl, global_model = global_model, prev_model_pool=old_nets_pool, round=round, device=device)
+            ##### party_list_this_round or args.n_parties
+            total_data_points = sum([len(net_dataidx_map[r]) for r in party_list_this_round])
+            fed_avg_freqs = [len(net_dataidx_map[r]) / total_data_points for r in party_list_this_round]
+
+            nets_loss_weight = [i / sum(epoch_loss_nets) for i in epoch_loss_nets]
+            if args.agg_weight == 'volume':
+                for net_id, net in enumerate(nets_this_round.values()):
+                    net_para = net.state_dict()
+                    if net_id == 0:
+                        for key in net_para:
+                            global_w[key] = net_para[key] * fed_avg_freqs[net_id]
+                    else:
+                        for key in net_para:
+                            global_w[key] += net_para[key] * fed_avg_freqs[net_id]
+            elif args.agg_weight == 'entropy':
+                for net_id, net in enumerate(nets_this_round.values()):
+                    net_para = net.state_dict()
+                    if net_id == 0:
+                        for key in net_para:
+                            global_w[key] = net_para[key] * entropy_w_list_rounds[round][net_id]
+                    else:
+                        for key in net_para:
+                            global_w[key] += net_para[key] * entropy_w_list_rounds[round][net_id]
+            elif args.agg_weight == 'loss':
+                for net_id, net in enumerate(nets_this_round.values()):
+                    net_para = net.state_dict()
+                    if net_id == 0:
+                        for key in net_para:
+                            global_w[key] = net_para[key] * nets_loss_weight[net_id]
+                    else:
+                        for key in net_para:
+                            global_w[key] += net_para[key] * nets_loss_weight[net_id]
+            elif args.agg_weight == 've' or 'ev':
+                for net_id, net in enumerate(nets_this_round.values()):
+                    net_para = net.state_dict()
+                    if net_id == 0:
+                        for key in net_para:
+                            global_w[key] = net_para[key] * (0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
+                    else:
+                        for key in net_para:
+                            global_w[key] += net_para[key] * (
+                                        0.5 * fed_avg_freqs[net_id] + 0.5 * entropy_w_list_rounds[round][net_id])
+            elif args.agg_weight == 'vl' or 'lv':
+                for net_id, net in enumerate(nets_this_round.values()):
+                    net_para = net.state_dict()
+                    if net_id == 0:
+                        for key in net_para:
+                            global_w[key] = net_para[key] * (
+                                        0.5 * fed_avg_freqs[net_id] + 0.5 * nets_loss_weight[net_id])
+                    else:
+                        for key in net_para:
+                            global_w[key] += net_para[key] * (
+                                        0.5 * fed_avg_freqs[net_id] + 0.5 * nets_loss_weight[net_id])
+            elif args.agg_weight == 'el' or 'le':
+                for net_id, net in enumerate(nets_this_round.values()):
+                    net_para = net.state_dict()
+                    if net_id == 0:
+                        for key in net_para:
+                            global_w[key] = net_para[key] * (
+                                        0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
+                    else:
+                        for key in net_para:
+                            global_w[key] += net_para[key] * (
+                                        0.5 * entropy_w_list_rounds[round][net_id] + 0.5 * nets_loss_weight[net_id])
+            elif args.agg_weight == 'vel' or 'vle' or 'evl' or 'elv' or 'lve' or 'lev':
+                for net_id, net in enumerate(nets_this_round.values()):
+                    net_para = net.state_dict()
+                    if net_id == 0:
+                        for key in net_para:
+                            global_w[key] = net_para[key] * (
+                                        0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[
+                                    net_id])
+                    else:
+                        for key in net_para:
+                            global_w[key] += net_para[key] * (
+                                        0.4 * fed_avg_freqs + 0.3 * entropy_w_list_rounds[round][net_id] + 0.3 * nets_loss_weight[
+                                    net_id])
+            elif args.agg_weight == 'accumulate':
+                for net_id, net in enumerate(nets_this_round.values()):
+                    net_para = net.state_dict()
+                    if net_id == 0:
+                        for key in net_para:
+                            global_w[key] = 0.5 * global_w[key] + 0.5 * net_para[key] * fed_avg_freqs[net_id]
+                    else:
+                        for key in net_para:
+                            global_w[key] += 0.5 * net_para[key] * fed_avg_freqs[net_id]
+
+
+            if args.server_momentum:
+                delta_w = copy.deepcopy(global_w)
+                for key in delta_w:
+                    delta_w[key] = old_w[key] - global_w[key]
+                    moment_v[key] = args.server_momentum * moment_v[key] + (1-args.server_momentum) * delta_w[key]
+                    global_w[key] = old_w[key] - moment_v[key]
+
+            global_model.load_state_dict(global_w)
+            #summary(global_model.to(device), (3, 32, 32))
+            #################################################################
+            logger.info('global n_training: %d' % len(train_dl_global))
+            #################################################################
+            logger.info('global n_test: %d' % len(test_dl))
+            global_model.cuda()
+            train_acc, train_loss = compute_accuracy(global_model, train_dl_global, device=device)
+            test_acc, conf_matrix, _ = compute_accuracy(global_model, test_dl, get_confusion_matrix=True, device=device)
+            global_model.to('cpu')
+            logger.info('>> Global Model Train accuracy: %f' % train_acc)
+            writer.add_scalar("Train_Acc",train_acc,round)
+            logger.info('>> Global Model Test accuracy: %f' % test_acc)
+            writer.add_scalar("Test_Acc", test_acc, round)
+            logger.info('>> Global Model Train loss: %f' % train_loss)
+            writer.add_scalar("Train_Loss", train_loss, round)
+
+
+            #################################################################
+            if len(old_nets_pool) < args.model_buffer_size:
+                old_nets = copy.deepcopy(nets)
+                for _, net in old_nets.items():
+                    net.eval()
+                    for param in net.parameters():
+                        param.requires_grad = False
+                old_nets_pool.append(old_nets)
+            elif args.pool_option == 'FIFO':
+                old_nets = copy.deepcopy(nets)
+                for _, net in old_nets.items():
+                    net.eval()
+                    for param in net.parameters():
+                        param.requires_grad = False
+                for i in range(args.model_buffer_size-2, -1, -1):
+                    old_nets_pool[i] = old_nets_pool[i+1]
+                old_nets_pool[args.model_buffer_size - 1] = old_nets
+            #################################################################
+
+            mkdirs(args.modeldir+'fedext/')
+            if args.save_model:
+                if test_acc > best_acc:
+                    best_acc = test_acc
+                    torch.save(global_model.state_dict(), args.modeldir+'fedext/global_model_'+args.log_file_name+'.pth')
+                    torch.save(nets[0].state_dict(), args.modeldir+'fedext/localmodel0'+args.log_file_name+'.pth')
+                #################################################################
+                for nets_id, old_nets in enumerate(old_nets_pool):
+                    torch.save({'pool'+ str(nets_id) + '_'+'net'+str(net_id): net.state_dict() for net_id, net in old_nets.items()}, args.modeldir+'fedext/prev_model_pool_'+args.log_file_name+'.pth')
                 #################################################################
 
     elif args.alg == 'fedavg':

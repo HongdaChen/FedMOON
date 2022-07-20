@@ -14,7 +14,7 @@ FILES_NAMES = {
     "Train/Loss": "train-loss.png",
     "Train/Metric": "train-acc.png",
     "Test/Loss": "test-loss.png",
-    "Test_Acc": "test-acc.png",
+    "Test_Acc": "free-marker-test-acc.png",
 }
 
 AXE_LABELS = {
@@ -79,10 +79,10 @@ LINESTYLE = {
     "personalized": "-",
     "DEM": "-",
     "fedprox": "-",
-    "fedavg_entropy": ":",
-    "fededg_entropy": ":",
-    "fedprox_entropy": ":",
-    "moon_entropy": ":"
+    "fedavg_entropy": "--",
+    "fededg_entropy": "--",
+    "fedprox_entropy": "--",
+    "moon_entropy": "--"
 }
 
 def make_plot(path_,tag_,save_path=None):
@@ -112,9 +112,9 @@ def make_plot(path_,tag_,save_path=None):
                     if algorithm in LEGEND:
                         ax.plot(steps,tag_values,
                                 linewidth=2.0,
-                                marker=MARKERS[algorithm],
-                                markersize=10,
-                                markeredgewidth=1,
+                                # marker=MARKERS[algorithm],
+                                # markersize=10,
+                                # markeredgewidth=1,
                                 label=f"{LEGEND[algorithm]}",
                                 linestyle=LINESTYLE[algorithm],
                                 color=COLORS[algorithm])
@@ -130,10 +130,10 @@ def make_plot(path_,tag_,save_path=None):
     plt.savefig(fig_path,bbox_inches='tight')
 
 if __name__ == "__main__":
-    make_plot("logs/pic/beta-0.1/cifar100", "Test_Acc")
-    make_plot("logs/pic/beta-0.1/cifar10", "Test_Acc")
+    # make_plot("logs/pic/beta-0.1/cifar100", "Test_Acc")
+    # make_plot("logs/pic/beta-0.1/cifar10", "Test_Acc")
     make_plot("logs/pic/beta-0.5/cifar100", "Test_Acc")
-    make_plot("logs/pic/beta-0.5/cifar10", "Test_Acc")
+    # make_plot("logs/pic/beta-0.5/cifar10", "Test_Acc")
     # make_plot("../logs/shakespeare", "Test/Loss")
     # make_plot("../logs/shakespeare", "Train/Metric")
     # make_plot("../logs/shakespeare", "Train/Loss")

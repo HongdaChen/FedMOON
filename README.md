@@ -12,19 +12,19 @@ https://github.com/QinbinLi/MOON
 
 
 ```commandline
-bash run.sh el 10 cifar10 64 0.1 1
+bash run.sh entropy 10 cifar10 64 0.1 1
 ```
 
 ```commandline
-bash run.sh el 100 cifar100 32 0.1 1
+bash run.sh entropy 100 cifar100 32 0.1 1
 ```
 
 
 ```commandline
-bash run.sh el 10 cifar10 64 0.5 1
+bash fedext.sh entropy 10 cifar10 64 0.5 1
 ```
 
 ```commandline
-bash run.sh el 100 cifar100 32 0.5 1
+bash run.sh entropy 100 cifar100 32 0.5 1
 ```
 

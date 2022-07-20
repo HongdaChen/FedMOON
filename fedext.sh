@@ -1,0 +1,16 @@
+python main.py \
+--dataset=$3 \
+--model=simple-cnn \
+--alg=fedext \
+--sample_fraction=$6 \
+--lr=0.01 \
+--batch_size=$4 \
+--mu=5 \
+--agg_weight=$1 \
+--epochs=10  \
+--comm_round=100  \
+--n_parties=$2  \
+--partition=noniid \
+--beta=$5  \
+--logdir=logs/sample/fedext/$1/beta-$5/mu-5-b$4-e10-np$2-sample_fraction-$6 \
+--datadir=data/
